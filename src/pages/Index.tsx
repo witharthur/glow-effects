@@ -3,7 +3,6 @@ import { StatusBar } from "@/components/feed/StatusBar";
 import { FilterTabs } from "@/components/feed/FilterTabs";
 import { PostCard } from "@/components/feed/PostCard";
 import { DonateSheet } from "@/components/feed/DonateSheet";
-import { CommentsSheet } from "@/components/feed/CommentsSheet";
 import { EmptyState } from "@/components/feed/EmptyState";
 import { initialPosts, currentUser } from "@/components/feed/data";
 import type { FilterKey, Post } from "@/components/feed/types";
@@ -13,7 +12,6 @@ const Index = () => {
   const [posts, setPosts] = useState<Post[]>(initialPosts);
   const [filter, setFilter] = useState<FilterKey>("all");
   const [donateOpen, setDonateOpen] = useState(false);
-  const [activePostId, setActivePostId] = useState<string | null>(null);
   const [view, setView] = useState<"feed" | "loading" | "error">("feed");
 
   const filtered = useMemo(() => {
@@ -21,8 +19,6 @@ const Index = () => {
     if (filter === "paid") return posts.filter((p) => p.locked);
     return posts;
   }, [posts, filter]);
-
-  const activePost = posts.find((p) => p.id === activePostId) ?? null;
 
   const toggleLike = (id: string) =>
     setPosts((prev) =>
@@ -108,7 +104,8 @@ const Index = () => {
                     post={p}
                     onToggleLike={toggleLike}
                     onDonate={handleDonate}
-                    onOpenComments={setActivePostId}
+                    onAddComment={addComment}
+                    onToggleCommentLike={toggleCommentLike}
                   />
                 ))}
               </div>
@@ -178,16 +175,6 @@ const Index = () => {
         )}
 
         <DonateSheet open={donateOpen} onOpenChange={setDonateOpen} />
-
-        <CommentsSheet
-          open={!!activePost}
-          onOpenChange={(o) => !o && setActivePostId(null)}
-          comments={activePost?.comments ?? []}
-          onAdd={(text) => activePost && addComment(activePost.id, text)}
-          onToggleLike={(cid) =>
-            activePost && toggleCommentLike(activePost.id, cid)
-          }
-        />
       </div>
     </main>
   );
