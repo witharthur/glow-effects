@@ -4,13 +4,16 @@ import ler04ka from "@/assets/avatar-lerochka.jpg";
 import postRunner from "@/assets/post-runner.png";
 import postGraffiti from "@/assets/post-graffiti.jpg";
 import postHangover from "@/assets/post-hangover.jpg";
+import goshaPrivat from "@/assets/goshsa_privat.jpg";
+import pepe from "@/assets/pepe.jpg";
 import type { Post } from "./types";
 
 const petrFedko = { id: "u1", name: "Петр Федько", avatar: petr };
 const leshaKrid = { id: "u2", name: "Леша Крид", avatar: lesha };
 const ler04kaUser = { id: "u3", name: "Ler04ka", avatar: ler04ka };
 const vladZhdun = { id: "u4", name: "Влад Ждун", avatar: petr };
-const goshaRub = { id: "u5", name: "Гоша Рубчинский", avatar: lesha };
+const goshaRub = { id: "u5", name: "Гоша Рубчинский", avatar: goshaPrivat };
+const johnPepe = { id: "u6", name: "Вжон Пэпэ", avatar: pepe };
 
 const sampleComments = [
   { id: "c1", author: leshaKrid, text: "Хороший гайд!", likes: 2 },
@@ -18,6 +21,8 @@ const sampleComments = [
   { id: "c3", author: leshaKrid, text: "А какие кроссовки посоветуете?", likes: 1 },
   { id: "c4", author: petrFedko, text: "Пробовал — реально работает, через две недели стало легче.", likes: 5 },
   { id: "c5", author: leshaKrid, text: "Жду продолжения!", likes: 0 },
+  { id: "c6", author: goshaRub, text: "Вау как круто", likes: 0 },
+  { id: "c7", author: johnPepe, text: "лайк", likes: 0 },
 ];
 
 export const initialPosts: Post[] = [
@@ -28,7 +33,7 @@ export const initialPosts: Post[] = [
     title: "Подготовка к лету",
     text: "Когда вы начинаете бегать по утрам, но чувствуете, что каждый шаг даётся",
     likes: 12,
-    comments: sampleComments.slice(0, 3),
+    comments: sampleComments,
   },
   {
     id: "p2",
@@ -57,7 +62,7 @@ export const initialPosts: Post[] = [
     title: "Подготовка к лету",
     text: "Когда вы начинаете бегать по утрам, но чувствуете, что каждый шаг даётся. Когда вы начинаете бегать по утрам, но чувствуете, что каждый шаг даётся. Когда вы начинаете бегать по утрам, но чувствуете, что каждый шаг даётся. Когда вы начинаете бегать по утрам, но чувствуете, что каждый шаг даётся.",
     likes: 12,
-    comments: sampleComments.slice(0, 4),
+    comments: sampleComments,
     long: true,
   },
   {
@@ -67,7 +72,7 @@ export const initialPosts: Post[] = [
     title: "Подготовка к лету",
     text: "Когда вы начинаете бегать по утрам, но чувствуете, что каждый шаг даётся",
     likes: 12,
-    comments: sampleComments.slice(0, 3),
+    comments: sampleComments,
   },
   // --- Locked / private posts ---
   {

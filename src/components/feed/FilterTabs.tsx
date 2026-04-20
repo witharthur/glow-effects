@@ -24,6 +24,7 @@ export const FilterTabs = ({
       border: '1px solid rgba(232, 236, 239, 1)',
       gap: '0px',
       padding: '0px',
+      marginTop: '15px',
       marginBottom: '15px',
     }}
   >

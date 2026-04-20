@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { StatusBar } from "@/components/feed/StatusBar";
+
 import { FilterTabs } from "@/components/feed/FilterTabs";
 import { PostCard } from "@/components/feed/PostCard";
 import { DonateSheet } from "@/components/feed/DonateSheet";
@@ -34,17 +34,17 @@ const Index = () => {
       prev.map((p) =>
         p.id === postId
           ? {
-              ...p,
-              comments: [
-                ...p.comments,
-                {
-                  id: `c-${Date.now()}`,
-                  author: currentUser,
-                  text,
-                  likes: 0,
-                },
-              ],
-            }
+            ...p,
+            comments: [
+              ...p.comments,
+              {
+                id: `c-${Date.now()}`,
+                author: currentUser,
+                text,
+                likes: 0,
+              },
+            ],
+          }
           : p
       )
     );
@@ -54,17 +54,17 @@ const Index = () => {
       prev.map((p) =>
         p.id === postId
           ? {
-              ...p,
-              comments: p.comments.map((c) =>
-                c.id === commentId
-                  ? {
-                      ...c,
-                      liked: !c.liked,
-                      likes: c.liked ? c.likes - 1 : c.likes + 1,
-                    }
-                  : c
-              ),
-            }
+            ...p,
+            comments: p.comments.map((c) =>
+              c.id === commentId
+                ? {
+                  ...c,
+                  liked: !c.liked,
+                  likes: c.liked ? c.likes - 1 : c.likes + 1,
+                }
+                : c
+            ),
+          }
           : p
       )
     );
@@ -83,7 +83,6 @@ const Index = () => {
   return (
     <main className="min-h-screen bg-background">
       <div className="mx-auto w-full max-w-md min-h-screen bg-secondary/40 relative">
-        <StatusBar />
 
         {view === "feed" && (
           <>
@@ -112,7 +111,7 @@ const Index = () => {
             )}
 
             <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 flex items-center gap-1 bg-card/90 backdrop-blur rounded-full px-1.5 py-1.5 shadow-card border border-border max-w-[calc(100%-1.5rem)]">
-              
+
               <button
                 onClick={() => setView("error")}
                 className="text-xs px-3 py-1.5 rounded-full hover:bg-secondary text-muted-foreground whitespace-nowrap transition-colors"
@@ -127,7 +126,7 @@ const Index = () => {
               </button>
               <button
                 onClick={reload}
-                className="text-xs px-3 py-1.5 rounded-full bg-primary text-primary-foreground font-semibold whitespace-nowrap transition-colors"
+                className="text-xs px-3 py-1.5 rounded-full hover:bg-secondary text-muted-foreground whitespace-nowrap transition-colors"
               >
                 Сброс
               </button>

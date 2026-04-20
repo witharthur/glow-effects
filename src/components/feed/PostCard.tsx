@@ -4,6 +4,32 @@ import { cn } from "@/lib/utils";
 import type { Post } from "./types";
 import { currentUser } from "./data";
 
+const PAGE = 3;
+
+const formatCommentCount = (n: number) => {
+  const m10 = n % 10;
+  const m100 = n % 100;
+  const w =
+    m10 === 1 && m100 !== 11
+      ? "комментарий"
+      : m10 >= 2 && m10 <= 4 && (m100 < 10 || m100 >= 20)
+        ? "комментария"
+        : "комментариев";
+  return `${n} ${w}`;
+};
+
+const CommentSendIcon = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 24 24"
+    className="h-7 w-7 shrink-0"
+    fill="currentColor"
+    aria-hidden
+  >
+    <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+  </svg>
+);
+
 export const PostCard = ({
   post,
   onToggleLike,
@@ -19,8 +45,11 @@ export const PostCard = ({
 }) => {
   const [showComments, setShowComments] = useState(false);
   const [commentText, setCommentText] = useState("");
+  const [sortNewest, setSortNewest] = useState(true);
+  const [visible, setVisible] = useState(PAGE);
   const [expanded, setExpanded] = useState(false);
   const [isClamped, setIsClamped] = useState(false);
+  const [commentSending, setCommentSending] = useState(false);
   const textRef = useRef<HTMLParagraphElement>(null);
   const liked = !!post.liked;
   const commented = post.comments.some((c) => c.author.id === currentUser.id);
@@ -39,11 +68,24 @@ export const PostCard = ({
 
   const showMoreBtn = isClamped && !expanded;
 
+  useEffect(() => {
+    if (showComments) setVisible(PAGE);
+  }, [showComments]);
+
+  const shown = sortNewest
+    ? [...post.comments].reverse()
+    : post.comments;
+  const canSendComment = commentText.trim().length > 0;
+
   const handleAddComment = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!commentText.trim()) return;
-    onAddComment(post.id, commentText.trim());
+    const v = commentText.trim();
+    if (!v || commentSending) return;
+    setCommentSending(true);
+    onAddComment(post.id, v);
     setCommentText("");
+    setVisible((n) => Math.max(n, PAGE) + 1);
+    window.setTimeout(() => setCommentSending(false), 320);
   };
 
   return (
@@ -230,66 +272,87 @@ export const PostCard = ({
 
       {showComments && !post.locked && (
         <div className="border-t border-gray-100 bg-gray-50/30 animate-fade-in">
-          <div className="px-4 py-4 space-y-4">
-            {post.comments.map((c) => (
-              <div key={c.id} className="flex items-start gap-2.5 animate-fade-in">
+          <div className="px-4 pt-3 pb-2 flex items-center justify-between gap-3 min-h-[24px]">
+            <p className="text-[15px] font-medium text-[#5F6368] leading-5">
+              {formatCommentCount(post.comments.length)}
+            </p>
+            <button
+              type="button"
+              onClick={() => setSortNewest(!sortNewest)}
+              className="text-[15px] font-medium text-[#6200EE] hover:opacity-90 transition-opacity shrink-0"
+            >
+              {sortNewest ? "Сначала новые" : "Сначала старые"}
+            </button>
+          </div>
+
+          <div className="px-4 pb-4 space-y-4">
+            {post.comments.length === 0 && (
+              <p className="text-center text-sm text-[#5F6368] py-6">
+                Пока нет комментариев. Будьте первым!
+              </p>
+            )}
+
+            {shown.map((c) => (
+              <div key={c.id} className="flex items-start gap-3.5 animate-fade-in">
                 <img
                   src={c.author.avatar}
                   alt={c.author.name}
-                  width={32}
-                  height={32}
+                  width={44}
+                  height={44}
                   loading="lazy"
-                  className="h-8 w-8 rounded-full object-cover flex-shrink-0"
+                  className="h-[44px] w-[44px] rounded-full object-cover flex-shrink-0"
                 />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold text-gray-900 leading-tight">
+                <div className="flex-1 min-w-0 pt-0.5">
+                  <p className="text-[17px] font-bold text-gray-900 leading-tight">
                     {c.author.name}
                   </p>
-                  <p className="text-sm text-gray-800 leading-snug mt-0.5">
+                  <p className="text-[15px] text-gray-800 leading-[1.3] mt-0.5">
                     {c.text}
                   </p>
                 </div>
                 <button
                   onClick={() => onToggleCommentLike(post.id, c.id)}
                   className={cn(
-                    "flex items-center gap-1 text-xs font-semibold transition-colors flex-shrink-0",
+                    "flex items-center gap-1.5 pt-1 text-sm font-medium transition-all flex-shrink-0",
                     c.liked ? "text-like" : "text-gray-400 hover:text-gray-600"
                   )}
                 >
-                  <Heart
-                    className={cn("h-3.5 w-3.5", c.liked && "animate-pop")}
-                    fill={c.liked ? "currentColor" : "none"}
-                    strokeWidth={2}
-                  />
-                  <span className="tabular-nums">{c.likes}</span>
+                  {c.liked ? (
+                    <Heart className="h-5 w-5 animate-pop" fill="currentColor" strokeWidth={0} />
+                  ) : (
+                    <Heart className="h-5 w-5" strokeWidth={2} />
+                  )}
+                  <span className="tabular-nums pt-0.5">{c.likes}</span>
                 </button>
               </div>
             ))}
 
-            <form
-              onSubmit={handleAddComment}
-              className="flex items-center gap-2 pt-2"
-            >
-              <div className="flex-1 relative">
+
+            <form onSubmit={handleAddComment} className="flex items-center gap-3 pt-2">
+              <div className="flex-1">
                 <input
                   value={commentText}
                   onChange={(e) => setCommentText(e.target.value)}
                   placeholder="Ваш комментарий"
-                  className="w-full bg-white border border-gray-200 h-10 px-4 py-2 rounded-full text-sm text-gray-900 placeholder:text-gray-400 outline-none focus:border-primary transition-all shadow-sm"
+                  className="w-full bg-white border border-gray-200 h-[52px] px-5 py-2 rounded-full text-base text-gray-900 placeholder:text-gray-400 outline-none focus:border-primary transition-all shadow-sm"
                 />
               </div>
               <button
                 type="submit"
-                disabled={!commentText.trim()}
-                className="flex items-center justify-center text-primary disabled:opacity-30 transition-all hover:scale-110"
+                disabled={!canSendComment || commentSending}
+                className={cn(
+                  "flex items-center justify-center transition-[color,transform] duration-200",
+                  commentSending && "pointer-events-none text-[#4C1D95]",
+                  !commentSending &&
+                    !canSendComment &&
+                    "text-[#D6CFFF]",
+                  !commentSending &&
+                    canSendComment &&
+                    "text-[#8B5CF6] hover:text-[#6D28D9] hover:scale-110 active:text-[#5B21B6] active:scale-95"
+                )}
+                aria-label="Отправить"
               >
-                 <svg 
-                  viewBox="0 0 24 24" 
-                  fill="currentColor" 
-                  style={{ width: '18.75px', height: '18.75px', opacity: 1 }}
-                >
-                  <path d="M21.721,12.036L3.935,2.337C3.514,2.107,3,2.414,3,2.893l0,6.136c0,0.395,0.287,0.73,0.676,0.785l11.756,1.666c0.354,0.05,0.354,0.556,0,0.606 L3.676,13.751C3.287,13.806,3,14.141,3,14.536l0,6.136c0,0.479,0.514,0.786,0.935,0.556l17.786-9.699 C22.143,11.306,22.143,12.266,21.721,12.036z" />
-                </svg>
+                <CommentSendIcon />
               </button>
             </form>
           </div>
