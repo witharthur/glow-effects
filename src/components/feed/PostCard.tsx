@@ -1,8 +1,10 @@
-import { useEffect, useRef, useState } from "react";
-import { Heart, MessageCircle, DollarSign } from "lucide-react";
+import { useEffect, useRef, useState, useMemo } from "react";
+import { Heart, MessageCircle, DollarSign, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Post } from "./types";
 import { currentUser } from "./data";
+import { Link } from "react-router-dom";
+import { useComments, useCreateComment } from "@/hooks/useComments";
 
 const PAGE = 3;
 
@@ -52,7 +54,24 @@ export const PostCard = ({
   const [commentSending, setCommentSending] = useState(false);
   const textRef = useRef<HTMLParagraphElement>(null);
   const liked = !!post.liked;
-  const commented = post.comments.some((c) => c.author.id === currentUser.id);
+  const commented = post.comments.some((c) => c.author?.id === currentUser.id);
+
+  const { data: commentsData, isLoading: commentsLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = useComments(post.id, showComments);
+  const { mutate: sendComment, isPending: commentSendingMutation } = useCreateComment(post.id);
+
+  const realComments = useMemo(() => {
+    return (commentsData?.pages ?? []).flatMap(page => (page.items ?? []).map(c => ({
+      id: c.id,
+      author: {
+        id: c.author.id,
+        name: c.author.displayName || c.author.username,
+        avatar: c.author.avatarUrl
+      },
+      text: c.text,
+      likes: 0,
+      liked: false
+    })));
+  }, [commentsData]);
 
   // Detect overflow when collapsed (>2 lines)
   useEffect(() => {
@@ -73,37 +92,42 @@ export const PostCard = ({
   }, [showComments]);
 
   const shown = sortNewest
-    ? [...post.comments].reverse()
-    : post.comments;
+    ? [...realComments].reverse()
+    : realComments;
   const canSendComment = commentText.trim().length > 0;
 
   const handleAddComment = (e: React.FormEvent) => {
     e.preventDefault();
     const v = commentText.trim();
-    if (!v || commentSending) return;
+    if (!v || commentSending || commentSendingMutation) return;
     setCommentSending(true);
-    onAddComment(post.id, v);
-    setCommentText("");
-    setVisible((n) => Math.max(n, PAGE) + 1);
-    window.setTimeout(() => setCommentSending(false), 320);
+    sendComment(v, {
+      onSuccess: () => {
+        setCommentText("");
+        window.setTimeout(() => setCommentSending(false), 320);
+      },
+      onError: () => setCommentSending(false)
+    });
   };
 
   return (
     <article className="bg-card shadow-card overflow-hidden animate-fade-in relative flex flex-col">
       {!post.locked && (
-        <header className="flex items-center gap-3 px-4 py-3">
-          <img
-            src={post.author.avatar}
-            alt={post.author.name}
-            loading="lazy"
-            width={40}
-            height={40}
-            className="h-9 w-9 rounded-full object-cover ring-2 ring-background"
-          />
-          <span className="text-sm font-semibold text-foreground">
-            {post.author.name}
-          </span>
-        </header>
+        <Link to={`/posts/${post.id}`} className="hover:opacity-80 block">
+          <header className="flex items-center gap-3 px-4 py-3">
+            <img
+              src={post.author.avatar}
+              alt={post.author.name}
+              loading="lazy"
+              width={40}
+              height={40}
+              className="h-9 w-9 rounded-full object-cover ring-2 ring-background"
+            />
+            <span className="text-sm font-semibold text-foreground">
+              {post.author.name}
+            </span>
+          </header>
+        </Link>
       )}
 
       {post.locked ? (
@@ -184,12 +208,14 @@ export const PostCard = ({
         </div>
       ) : (
         post.image && (
-          <img
-            src={post.image}
-            alt={post.title}
-            loading="lazy"
-            className="w-full aspect-square object-cover"
-          />
+          <Link to={`/posts/${post.id}`} className="block">
+            <img
+              src={post.image}
+              alt={post.title}
+              loading="lazy"
+              className="w-full aspect-square object-cover"
+            />
+          </Link>
         )
       )}
 
@@ -286,7 +312,13 @@ export const PostCard = ({
           </div>
 
           <div className="px-4 pb-4 space-y-4">
-            {post.comments.length === 0 && (
+            {commentsLoading && (
+              <div className="flex justify-center py-4">
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              </div>
+            )}
+            
+            {!commentsLoading && realComments.length === 0 && (
               <p className="text-center text-sm text-[#5F6368] py-6">
                 Пока нет комментариев. Будьте первым!
               </p>
@@ -326,7 +358,16 @@ export const PostCard = ({
                 </button>
               </div>
             ))}
-
+            
+            {hasNextPage && (
+              <button
+                onClick={() => fetchNextPage()}
+                disabled={isFetchingNextPage}
+                className="w-full text-sm text-primary font-semibold hover:underline py-2"
+              >
+                {isFetchingNextPage ? "Загрузка..." : "Показать еще комментарии"}
+              </button>
+            )}
 
             <form onSubmit={handleAddComment} className="flex items-center gap-3 pt-2">
               <div className="flex-1">

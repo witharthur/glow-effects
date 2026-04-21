@@ -1,12 +1,14 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 
 import { FilterTabs } from "@/components/feed/FilterTabs";
 import { PostCard } from "@/components/feed/PostCard";
+import { PostCardSkeleton } from "@/components/feed/PostCardSkeleton";
 import { DonateSheet } from "@/components/feed/DonateSheet";
 import { EmptyState } from "@/components/feed/EmptyState";
 import { initialPosts, currentUser } from "@/components/feed/data";
 import type { FilterKey, Post } from "@/components/feed/types";
 import { Loader2 } from "lucide-react";
+import { usePosts, useLikePost } from "@/hooks/usePosts";
 
 const Index = () => {
   const [posts, setPosts] = useState<Post[]>(initialPosts);
@@ -14,70 +16,77 @@ const Index = () => {
   const [donateOpen, setDonateOpen] = useState(false);
   const [view, setView] = useState<"feed" | "loading" | "error">("feed");
 
-  const filtered = useMemo(() => {
-    if (filter === "free") return posts.filter((p) => !p.locked);
-    if (filter === "paid") return posts.filter((p) => p.locked);
-    return posts;
-  }, [posts, filter]);
+  const { data, isLoading, isError, fetchNextPage, hasNextPage, isFetchingNextPage } = usePosts(filter);
+  const { mutate: likePost } = useLikePost();
 
-  const toggleLike = (id: string) =>
-    setPosts((prev) =>
-      prev.map((p) =>
-        p.id === id
-          ? { ...p, liked: !p.liked, likes: p.liked ? p.likes - 1 : p.likes + 1 }
-          : p
-      )
+  const mappedPosts = useMemo(() => {
+    const seen = new Set<string>();
+    let globalIndex = 0;
+    return (data?.pages ?? []).flatMap((page) =>
+      (page?.items ?? []).filter((p) => {
+        if (seen.has(p.id)) return false;
+        seen.add(p.id);
+        return true;
+      }).map((p): Post => {
+        const mockImg = initialPosts[globalIndex % initialPosts.length]?.image;
+        const mockAvatar = initialPosts[globalIndex % initialPosts.length]?.author?.avatar;
+        globalIndex++;
+        return {
+          id: p.id,
+          author: {
+            id: p.author.id,
+            name: p.author.displayName || p.author.username,
+            avatar: mockAvatar || p.author.avatarUrl,
+          },
+          image: mockImg || p.coverUrl,
+          title: p.title,
+          text: p.body || p.preview,
+          likes: p.likesCount,
+          // We set a fake array here just for the comments count in the UI. 
+          // PostCard will fetch actual comments itself.
+          comments: Array.from({ length: p.commentsCount }).map(() => ({} as any)),
+          liked: p.isLiked,
+          locked: p.tier === "paid",
+          long: false,
+        };
+      })
     );
+  }, [data]);
 
-  const addComment = (postId: string, text: string) =>
-    setPosts((prev) =>
-      prev.map((p) =>
-        p.id === postId
-          ? {
-            ...p,
-            comments: [
-              ...p.comments,
-              {
-                id: `c-${Date.now()}`,
-                author: currentUser,
-                text,
-                likes: 0,
-              },
-            ],
-          }
-          : p
-      )
-    );
+  // Infinite scroll listener
+  useEffect(() => {
+    const handleScroll = () => {
+      if (
+        window.innerHeight + document.documentElement.scrollTop >=
+          document.documentElement.offsetHeight - 500 &&
+        hasNextPage &&
+        !isFetchingNextPage
+      ) {
+        fetchNextPage();
+      }
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
-  const toggleCommentLike = (postId: string, commentId: string) =>
-    setPosts((prev) =>
-      prev.map((p) =>
-        p.id === postId
-          ? {
-            ...p,
-            comments: p.comments.map((c) =>
-              c.id === commentId
-                ? {
-                  ...c,
-                  liked: !c.liked,
-                  likes: c.liked ? c.likes - 1 : c.likes + 1,
-                }
-                : c
-            ),
-          }
-          : p
-      )
-    );
+  // Sync state view
+  useEffect(() => {
+    if (isLoading) setView("loading");
+    else if (isError) setView("error");
+    else setView("feed");
+  }, [isLoading, isError]);
+
+  const toggleLike = (id: string) => likePost(id);
+
+  // We leave these as no-ops since PostCard handles its own comments now
+  const addComment = () => {};
+  const toggleCommentLike = () => {};
 
   const handleDonate = (_id: string) => setDonateOpen(true);
 
   const reload = () => {
     setView("loading");
-    setTimeout(() => {
-      setPosts(initialPosts);
-      setFilter("all");
-      setView("feed");
-    }, 900);
+    window.location.reload();
   };
 
   return (
@@ -86,8 +95,8 @@ const Index = () => {
 
         {view === "feed" && (
           <>
-            {filtered.length > 0 && <FilterTabs value={filter} onChange={setFilter} />}
-            {filtered.length === 0 ? (
+            {mappedPosts.length > 0 && <FilterTabs value={filter} onChange={setFilter} />}
+            {mappedPosts.length === 0 ? (
               <div className="flex items-center justify-center min-h-[calc(100vh-80px)]">
                 <EmptyState
                   message="По вашему запросу ничего не найдено"
@@ -97,7 +106,7 @@ const Index = () => {
               </div>
             ) : (
               <div className="flex flex-col gap-3 pb-24" style={{ borderRadius: '0px' }}>
-                {filtered.map((p) => (
+                {mappedPosts.map((p) => (
                   <PostCard
                     key={p.id}
                     post={p}
@@ -107,6 +116,12 @@ const Index = () => {
                     onToggleCommentLike={toggleCommentLike}
                   />
                 ))}
+                
+                {isFetchingNextPage && (
+                  <div className="flex justify-center py-6">
+                    <Loader2 className="h-7 w-7 animate-spin text-primary" />
+                  </div>
+                )}
               </div>
             )}
 
@@ -119,10 +134,10 @@ const Index = () => {
                 Ошибка
               </button>
               <button
-                onClick={() => setPosts([])}
+                onClick={() => setFilter("free")}
                 className="text-xs px-3 py-1.5 rounded-full hover:bg-secondary text-muted-foreground whitespace-nowrap transition-colors"
               >
-                Пусто
+                Бесплатные
               </button>
               <button
                 onClick={reload}
@@ -135,8 +150,10 @@ const Index = () => {
         )}
 
         {view === "loading" && (
-          <div className="flex items-center justify-center py-32 animate-fade-in">
-            <Loader2 className="h-10 w-10 text-primary animate-spin-slow" />
+          <div className="flex flex-col gap-3 pb-24 animate-fade-in" style={{ borderRadius: '0px' }}>
+            {Array.from({ length: 3 }).map((_, i) => (
+              <PostCardSkeleton key={i} />
+            ))}
           </div>
         )}
 

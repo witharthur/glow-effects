@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Mecenate Test</string>
+    <string name="title_activity_main">Mecenate Test</string>
+    <string name="package_name">com.mecenate.test</string>
+    <string name="custom_url_scheme">com.mecenate.test</string>
+</resources>
